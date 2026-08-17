@@ -16,7 +16,9 @@ include(cmake/FetchDependencies.cmake)
 # Add source modules
 add_subdirectory(src/crawler)
 add_subdirectory(src/indexer)
+add_subdirectory(src/search)
 
 # Main executable
 add_executable(search_engine src/main.cpp)
-target_link_libraries(search_engine PRIVATE crawler_lib indexer_lib)
+target_include_directories(search_engine PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(search_engine PRIVATE crawler_lib indexer_lib search_lib)
