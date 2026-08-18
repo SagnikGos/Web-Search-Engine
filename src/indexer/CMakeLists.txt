@@ -3,6 +3,7 @@ add_library(indexer_lib STATIC
     stop_words.cpp
     document_store.cpp
     inverted_index.cpp
+    index_serializer.cpp
 )
 
 target_include_directories(indexer_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

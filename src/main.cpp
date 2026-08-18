@@ -7,12 +7,14 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include "crawler/crawler.h"
 #include "indexer/tokenizer.h"
 #include "indexer/stop_words.h"
 #include "indexer/document_store.h"
 #include "indexer/inverted_index.h"
+#include "indexer/index_serializer.h"
 #include "search/query_processor.h"
 
 using json = nlohmann::json;
@@ -25,15 +27,15 @@ void PrintUsage() {
     std::cout << "  crawl <seed_url> [--max-pages N] [--threads N] [--output-dir DIR]" << std::endl;
     std::cout << "    Crawl web pages starting from the seed URL." << std::endl;
     std::cout << std::endl;
-    std::cout << "  index [--input-dir DIR] [--stop-words FILE]" << std::endl;
-    std::cout << "    Build an inverted index from crawled pages." << std::endl;
+    std::cout << "  index [--input-dir DIR] [--stop-words FILE] [--index-dir DIR]" << std::endl;
+    std::cout << "    Build and save an inverted index from crawled pages." << std::endl;
     std::cout << std::endl;
-    std::cout << "  search <query> [--input-dir DIR] [--stop-words FILE] [--top-k N]" << std::endl;
-    std::cout << "    Search the index for matching documents." << std::endl;
+    std::cout << "  search <query> [--index-dir DIR] [--stop-words FILE] [--top-k N]" << std::endl;
+    std::cout << "    Search the saved index for matching documents." << std::endl;
     std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  search_engine crawl https://en.wikipedia.org/wiki/C++ --max-pages 100" << std::endl;
-    std::cout << "  search_engine index --input-dir ./data/crawled_pages/" << std::endl;
+    std::cout << "  search_engine index" << std::endl;
     std::cout << "  search_engine search \"web search algorithm\"" << std::endl;
 }
 
@@ -77,7 +79,6 @@ int RunCrawl(int argc, char* argv[]) {
 
 // ========================
 // Helper: Build Index from crawled pages
-// (shared between 'index' and 'search' commands)
 // ========================
 struct IndexBundle {
     Tokenizer tokenizer;
@@ -97,14 +98,12 @@ std::unique_ptr<IndexBundle> BuildIndex(const std::string& input_dir,
         std::cout << "Loaded " << bundle->stop_filter.Size() << " stop words." << std::endl;
     }
 
-    // Collect all JSON files
     std::vector<fs::path> json_files;
     for (const auto& entry : fs::directory_iterator(input_dir)) {
         if (entry.path().extension() == ".json") {
             json_files.push_back(entry.path());
         }
     }
-
     std::sort(json_files.begin(), json_files.end());
 
     if (verbose) {
@@ -154,11 +153,12 @@ std::unique_ptr<IndexBundle> BuildIndex(const std::string& input_dir,
 }
 
 // ========================
-// INDEX Command
+// INDEX Command (now saves to disk)
 // ========================
 int RunIndex(int argc, char* argv[]) {
     std::string input_dir = "./data/crawled_pages/";
     std::string stop_words_file = "./data/stop_words.txt";
+    std::string index_dir = "./data/index/";
 
     for (int i = 2; i < argc; i++) {
         std::string arg = argv[i];
@@ -166,15 +166,40 @@ int RunIndex(int argc, char* argv[]) {
             input_dir = argv[++i];
         } else if (arg == "--stop-words" && i + 1 < argc) {
             stop_words_file = argv[++i];
+        } else if (arg == "--index-dir" && i + 1 < argc) {
+            index_dir = argv[++i];
         }
     }
 
     std::cout << "=== Web Search Engine Indexer ===" << std::endl;
     std::cout << "Input directory: " << input_dir << std::endl;
     std::cout << "Stop words file: " << stop_words_file << std::endl;
+    std::cout << "Index output:    " << index_dir << std::endl;
     std::cout << std::endl;
 
     auto bundle = BuildIndex(input_dir, stop_words_file);
+
+    // Save index to disk
+    std::cout << std::endl;
+    std::cout << "Saving index to " << index_dir << "..." << std::endl;
+    auto save_start = std::chrono::high_resolution_clock::now();
+
+    if (IndexSerializer::Save(index_dir, bundle->index, bundle->doc_store)) {
+        auto save_end = std::chrono::high_resolution_clock::now();
+        auto save_ms = std::chrono::duration_cast<std::chrono::milliseconds>(save_end - save_start);
+
+        // Calculate file sizes
+        auto index_size = fs::file_size(fs::path(index_dir) / "index.json");
+        auto docs_size = fs::file_size(fs::path(index_dir) / "documents.json");
+
+        std::cout << "Index saved successfully!" << std::endl;
+        std::cout << "  index.json:     " << (index_size / 1024) << " KB" << std::endl;
+        std::cout << "  documents.json: " << (docs_size / 1024) << " KB" << std::endl;
+        std::cout << "  Save time:      " << save_ms.count() << " ms" << std::endl;
+    } else {
+        std::cerr << "Error: Failed to save index." << std::endl;
+        return 1;
+    }
 
     // Sample lookups
     std::cout << std::endl;
@@ -200,7 +225,7 @@ int RunIndex(int argc, char* argv[]) {
 }
 
 // ========================
-// SEARCH Command
+// SEARCH Command (now loads from disk)
 // ========================
 int RunSearch(int argc, char* argv[]) {
     if (argc < 3) {
@@ -209,18 +234,16 @@ int RunSearch(int argc, char* argv[]) {
         return 1;
     }
 
-    // Collect query (may be multiple argv words if not quoted)
     std::string raw_query;
-    std::string input_dir = "./data/crawled_pages/";
+    std::string index_dir = "./data/index/";
     std::string stop_words_file = "./data/stop_words.txt";
     size_t top_k = 10;
 
-    // Parse: collect non-flag args as query, parse flags
     std::vector<std::string> query_parts;
     for (int i = 2; i < argc; i++) {
         std::string arg = argv[i];
-        if (arg == "--input-dir" && i + 1 < argc) {
-            input_dir = argv[++i];
+        if (arg == "--index-dir" && i + 1 < argc) {
+            index_dir = argv[++i];
         } else if (arg == "--stop-words" && i + 1 < argc) {
             stop_words_file = argv[++i];
         } else if (arg == "--top-k" && i + 1 < argc) {
@@ -230,7 +253,6 @@ int RunSearch(int argc, char* argv[]) {
         }
     }
 
-    // Join query parts
     for (size_t i = 0; i < query_parts.size(); i++) {
         if (i > 0) raw_query += " ";
         raw_query += query_parts[i];
@@ -244,16 +266,40 @@ int RunSearch(int argc, char* argv[]) {
     std::cout << "=== Web Search Engine ===" << std::endl;
     std::cout << std::endl;
 
-    // Build index (show minimal output)
-    std::cout << "Building index..." << std::endl;
-    auto bundle = BuildIndex(input_dir, stop_words_file, false);
-    std::cout << "Index ready: " << bundle->doc_store.TotalDocuments()
-              << " documents, " << bundle->index.TermCount() << " terms" << std::endl;
+    // Load index from disk (fast!) instead of rebuilding
+    Tokenizer tokenizer;
+    StopWordFilter stop_filter(stop_words_file);
+    DocumentStore doc_store;
+    InvertedIndex index;
+
+    if (IndexSerializer::IndexExists(index_dir)) {
+        std::cout << "Loading index from " << index_dir << "..." << std::endl;
+        auto load_start = std::chrono::high_resolution_clock::now();
+
+        bool ok = IndexSerializer::LoadIndex(index_dir, index) &&
+                  IndexSerializer::LoadDocumentStore(index_dir, doc_store);
+
+        auto load_end = std::chrono::high_resolution_clock::now();
+        auto load_ms = std::chrono::duration_cast<std::chrono::milliseconds>(load_end - load_start);
+
+        if (ok) {
+            std::cout << "Index loaded: " << doc_store.TotalDocuments()
+                      << " documents, " << index.TermCount()
+                      << " terms (" << load_ms.count() << " ms)" << std::endl;
+        } else {
+            std::cerr << "Error: Failed to load index. Run 'index' command first." << std::endl;
+            return 1;
+        }
+    } else {
+        std::cerr << "Error: No saved index found at " << index_dir << std::endl;
+        std::cerr << "Run 'search_engine index' first to build and save the index." << std::endl;
+        return 1;
+    }
+
     std::cout << std::endl;
 
     // Process query and search
-    QueryProcessor processor(bundle->index, bundle->doc_store,
-                              bundle->tokenizer, bundle->stop_filter);
+    QueryProcessor processor(index, doc_store, tokenizer, stop_filter);
 
     auto query_terms = processor.ProcessQuery(raw_query);
     std::cout << "Query: \"" << raw_query << "\"" << std::endl;
@@ -270,12 +316,11 @@ int RunSearch(int argc, char* argv[]) {
     auto end = std::chrono::high_resolution_clock::now();
     auto search_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-    // Display results
     if (results.empty()) {
         std::cout << "No results found." << std::endl;
     } else {
         std::cout << "Found " << results.size() << " result(s) in "
-                  << search_time.count() << " μs:" << std::endl;
+                  << search_time.count() << " \xC2\xB5s:" << std::endl;
         std::cout << std::string(60, '-') << std::endl;
 
         for (size_t i = 0; i < results.size(); i++) {

@@ -1,0 +1,51 @@
+{
+  "date": "2026-08-18T00:09:44.185169700+05:30",
+  "data": {
+    "c:\\Users\\sagni\\c++_projects\\search-engine\\__cmake_systeminformation\\CMakeLists.txt": [
+      {
+        "label": "DUMP_FILE",
+        "kind": 3,
+        "detail": "Function",
+        "documentation": "defined macro\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\__cmake_systeminformation\\CMakeLists.txt\n\nbinary tree"
+      }
+    ],
+    "c:\\Users\\sagni\\c++_projects\\search-engine\\CMakeLists.txt": [
+      {
+        "label": "CMAKE_CXX_STANDARD",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\CMakeLists.txt"
+      },
+      {
+        "label": "CMAKE_CXX_STANDARD_REQUIRED",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\CMakeLists.txt"
+      },
+      {
+        "label": "CMAKE_EXPORT_COMPILE_COMMANDS",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\CMakeLists.txt"
+      },
+      {
+        "label": "CPR_FORCE_WINSSL_BACKEND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\cmake/FetchDependencies.cmake"
+      },
+      {
+        "label": "CPR_ENABLE_SSL",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\cmake/FetchDependencies.cmake"
+      },
+      {
+        "label": "JSON_BuildTests",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\cmake/FetchDependencies.cmake\n\nnlohmann_json - JSON library"
+      }
+    ]
+  }
+}

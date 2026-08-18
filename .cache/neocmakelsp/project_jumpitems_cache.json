@@ -1,0 +1,124 @@
+{
+  "date": "2026-08-18T00:09:44.185712800+05:30",
+  "data": {
+    "DUMP_FILE": {
+      "location": {
+        "uri": "file:///C:/Users/sagni/c++_projects/search-engine/__cmake_systeminformation/CMakeLists.txt",
+        "range": {
+          "start": {
+            "line": 70,
+            "character": 6
+          },
+          "end": {
+            "line": 70,
+            "character": 15
+          }
+        }
+      },
+      "document_info": "defined macro\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\__cmake_systeminformation\\CMakeLists.txt\n\nbinary tree",
+      "is_function": true
+    },
+    "JSON_BuildTests": {
+      "location": {
+        "uri": "file:///C:/Users/sagni/c++_projects/search-engine/cmake/FetchDependencies.cmake",
+        "range": {
+          "start": {
+            "line": 16,
+            "character": 4
+          },
+          "end": {
+            "line": 16,
+            "character": 19
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\cmake/FetchDependencies.cmake\n\nnlohmann_json - JSON library",
+      "is_function": false
+    },
+    "CMAKE_CXX_STANDARD_REQUIRED": {
+      "location": {
+        "uri": "file:///C:/Users/sagni/c++_projects/search-engine/CMakeLists.txt",
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 4
+          },
+          "end": {
+            "line": 4,
+            "character": 31
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\CMakeLists.txt",
+      "is_function": false
+    },
+    "CMAKE_EXPORT_COMPILE_COMMANDS": {
+      "location": {
+        "uri": "file:///C:/Users/sagni/c++_projects/search-engine/CMakeLists.txt",
+        "range": {
+          "start": {
+            "line": 5,
+            "character": 4
+          },
+          "end": {
+            "line": 5,
+            "character": 33
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\CMakeLists.txt",
+      "is_function": false
+    },
+    "CPR_ENABLE_SSL": {
+      "location": {
+        "uri": "file:///C:/Users/sagni/c++_projects/search-engine/cmake/FetchDependencies.cmake",
+        "range": {
+          "start": {
+            "line": 6,
+            "character": 4
+          },
+          "end": {
+            "line": 6,
+            "character": 18
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\cmake/FetchDependencies.cmake",
+      "is_function": false
+    },
+    "CPR_FORCE_WINSSL_BACKEND": {
+      "location": {
+        "uri": "file:///C:/Users/sagni/c++_projects/search-engine/cmake/FetchDependencies.cmake",
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 8
+          },
+          "end": {
+            "line": 4,
+            "character": 32
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\cmake/FetchDependencies.cmake",
+      "is_function": false
+    },
+    "CMAKE_CXX_STANDARD": {
+      "location": {
+        "uri": "file:///C:/Users/sagni/c++_projects/search-engine/CMakeLists.txt",
+        "range": {
+          "start": {
+            "line": 3,
+            "character": 4
+          },
+          "end": {
+            "line": 3,
+            "character": 22
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: c:\\Users\\sagni\\c++_projects\\search-engine\\CMakeLists.txt",
+      "is_function": false
+    }
+  }
+}
