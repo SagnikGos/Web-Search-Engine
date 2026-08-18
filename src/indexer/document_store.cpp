@@ -1,20 +1,6 @@
 #include "document_store.h"
 #include <stdexcept>
 
-std::string DocumentStore::GenerateSnippet(const std::string& body_text, size_t max_length) const {
-    if (body_text.size() <= max_length) {
-        return body_text;
-    }
-    
-    // Find the last space within the first max_length chars
-    size_t last_space = body_text.rfind(' ', max_length);
-    if (last_space != std::string::npos) {
-        return body_text.substr(0, last_space) + "...";
-    }
-    
-    // If no space found, just truncate at max_length and append "..."
-    return body_text.substr(0, max_length) + "...";
-}
 
 int DocumentStore::AddDocument(const std::string& url, const std::string& title,
                                const std::string& body_text, int total_terms) {
@@ -23,7 +9,7 @@ int DocumentStore::AddDocument(const std::string& url, const std::string& title,
     info.doc_id = doc_id;
     info.url = url;
     info.title = title;
-    info.snippet = GenerateSnippet(body_text);
+    info.body = body_text;
     info.total_terms = total_terms;
     
     documents_.push_back(info);

@@ -55,7 +55,7 @@ bool IndexSerializer::Save(const std::string& output_dir,
                     {"id", doc.doc_id},
                     {"url", doc.url},
                     {"title", doc.title},
-                    {"snippet", doc.snippet},
+                    {"body", doc.body},
                     {"total_terms", doc.total_terms}
                 });
             }
@@ -144,13 +144,10 @@ bool IndexSerializer::LoadDocumentStore(const std::string& input_dir,
         // For now, we use AddDocument with snippet as body (since snippet IS
         // the truncated body, it will just return as-is if <= 200 chars).
         for (const auto& doc : j["documents"]) {
-            // Use snippet as the body text since we already have it truncated
-            // AddDocument will regenerate snippet from this, which will be
-            // the same since snippet is already <= 200 chars
             doc_store.AddDocument(
                 doc["url"].get<std::string>(),
                 doc["title"].get<std::string>(),
-                doc["snippet"].get<std::string>(),
+                doc["body"].get<std::string>(),
                 doc["total_terms"].get<int>()
             );
         }

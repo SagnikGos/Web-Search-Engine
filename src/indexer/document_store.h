@@ -10,7 +10,7 @@ struct DocumentInfo {
     int doc_id = -1;
     std::string url;
     std::string title;
-    std::string snippet;     // First ~200 chars of body text
+    std::string body;        // Full body text for dynamic snippets
     int total_terms = 0;     // Total number of terms after tokenization (for TF calculation)
 };
 
@@ -37,9 +37,6 @@ public:
 private:
     std::vector<DocumentInfo> documents_;
     int next_id_ = 0;
-
-    // Generate a snippet from body text (first ~200 characters, ending at word boundary)
-    std::string GenerateSnippet(const std::string& body_text, size_t max_length = 200) const;
 };
 
 #endif // DOCUMENT_STORE_H

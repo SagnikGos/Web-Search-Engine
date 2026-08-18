@@ -16,6 +16,7 @@
 #include "indexer/inverted_index.h"
 #include "indexer/index_serializer.h"
 #include "search/query_processor.h"
+#include "server/web_server.h"
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -33,10 +34,14 @@ void PrintUsage() {
     std::cout << "  search <query> [--index-dir DIR] [--stop-words FILE] [--top-k N]" << std::endl;
     std::cout << "    Search the saved index for matching documents." << std::endl;
     std::cout << std::endl;
+    std::cout << "  server [--port N] [--frontend-dir DIR] [--index-dir DIR] [--stop-words FILE]" << std::endl;
+    std::cout << "    Start the web search backend server." << std::endl;
+    std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  search_engine crawl https://en.wikipedia.org/wiki/C++ --max-pages 100" << std::endl;
     std::cout << "  search_engine index" << std::endl;
     std::cout << "  search_engine search \"web search algorithm\"" << std::endl;
+    std::cout << "  search_engine server --port 8080 --frontend-dir ./frontend" << std::endl;
 }
 
 // ========================
@@ -337,6 +342,142 @@ int RunSearch(int argc, char* argv[]) {
     return 0;
 }
 
+// ========================
+// SERVER Command
+// ========================
+int RunServer(int argc, char* argv[]) {
+    int port = 8080;
+    std::string frontend_dir = "./frontend";
+    std::string index_dir = "./data/index/";
+    std::string stop_words_file = "./data/stop_words.txt";
+
+    for (int i = 2; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "--port" && i + 1 < argc) {
+            port = std::stoi(argv[++i]);
+        } else if (arg == "--frontend-dir" && i + 1 < argc) {
+            frontend_dir = argv[++i];
+        } else if (arg == "--index-dir" && i + 1 < argc) {
+            index_dir = argv[++i];
+        } else if (arg == "--stop-words" && i + 1 < argc) {
+            stop_words_file = argv[++i];
+        }
+    }
+
+    if (!IndexSerializer::IndexExists(index_dir)) {
+        std::cerr << "Error: No saved index found at " << index_dir << std::endl;
+        std::cerr << "Run 'search_engine index' first." << std::endl;
+        return 1;
+    }
+
+    std::mutex engine_mutex;
+    std::shared_ptr<IndexBundle> current_bundle;
+    std::shared_ptr<QueryProcessor> current_processor;
+
+    auto reload_index = [&]() {
+        auto bundle = std::make_shared<IndexBundle>(stop_words_file);
+        if (!IndexSerializer::LoadIndex(index_dir, bundle->index) ||
+            !IndexSerializer::LoadDocumentStore(index_dir, bundle->doc_store)) {
+            std::cerr << "Error: Failed to load index." << std::endl;
+            return false;
+        }
+        
+        auto processor = std::make_shared<QueryProcessor>(
+            bundle->index, bundle->doc_store, bundle->tokenizer, bundle->stop_filter);
+
+        std::lock_guard<std::mutex> lock(engine_mutex);
+        current_bundle = bundle;
+        current_processor = processor;
+        return true;
+    };
+
+    std::cout << "Loading index from " << index_dir << "..." << std::endl;
+    if (!reload_index()) {
+        return 1;
+    }
+    std::cout << "Index loaded successfully." << std::endl;
+
+    auto search_fn = [&](const std::string& query_str, size_t top_k) -> json {
+        std::shared_ptr<QueryProcessor> processor;
+        {
+            std::lock_guard<std::mutex> lock(engine_mutex);
+            processor = current_processor;
+        }
+
+        auto start = std::chrono::high_resolution_clock::now();
+        auto results = processor->Search(query_str, top_k);
+        auto end = std::chrono::high_resolution_clock::now();
+        auto time_us = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+
+        size_t total_terms = 0;
+        try {
+            total_terms = processor->ProcessQuery(query_str).size();
+        } catch(...) {}
+
+        json response_json;
+        response_json["time_us"] = time_us;
+        response_json["total_terms"] = total_terms;
+        
+        json results_array = json::array();
+        for (const auto& r : results) {
+            json item = {
+                {"url", r.url},
+                {"title", r.title},
+                {"snippet", r.snippet},
+                {"score", r.score}
+            };
+            results_array.push_back(item);
+        }
+        
+        response_json["results"] = results_array;
+        return response_json;
+    };
+
+    auto crawl_fn = [&](const std::string& url, int max_pages) -> bool {
+        std::cout << "\n[API] Starting background crawl for: " << url << " (max " << max_pages << ")" << std::endl;
+        
+        CrawlConfig config;
+        config.seed_urls.push_back(url);
+        config.max_pages = max_pages;
+        config.num_threads = 4;
+        config.output_dir = "./data/crawled_pages/";
+        
+        try {
+            Crawler crawler(config);
+            crawler.Start(); // Blocking crawl
+            
+            std::cout << "[API] Crawl complete. Rebuilding index..." << std::endl;
+            auto new_bundle = BuildIndex(config.output_dir, stop_words_file, false);
+            
+            std::cout << "[API] Saving new index to disk..." << std::endl;
+            if (!IndexSerializer::Save(index_dir, new_bundle->index, new_bundle->doc_store)) {
+                std::cerr << "[API] Error saving new index" << std::endl;
+                return false;
+            }
+            
+            auto new_processor = std::make_shared<QueryProcessor>(
+                new_bundle->index, new_bundle->doc_store, new_bundle->tokenizer, new_bundle->stop_filter);
+
+            {
+                std::lock_guard<std::mutex> lock(engine_mutex);
+                current_bundle = std::move(new_bundle);
+                current_processor = new_processor;
+            }
+            
+            std::cout << "[API] Hot-swapped new index successfully!" << std::endl;
+            return true;
+        } catch (const std::exception& e) {
+            std::cerr << "[API] Crawl error: " << e.what() << std::endl;
+            return false;
+        }
+    };
+
+    WebServer server(search_fn, crawl_fn, frontend_dir);
+
+    server.Start(port);
+    return 0;
+}
+
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         PrintUsage();
@@ -351,6 +492,8 @@ int main(int argc, char* argv[]) {
         return RunIndex(argc, argv);
     } else if (command == "search") {
         return RunSearch(argc, argv);
+    } else if (command == "server") {
+        return RunServer(argc, argv);
     } else {
         std::cerr << "Unknown command: " << command << std::endl;
         PrintUsage();
