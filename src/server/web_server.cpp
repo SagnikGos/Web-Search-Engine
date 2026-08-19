@@ -6,8 +6,8 @@
 
 using json = nlohmann::json;
 
-WebServer::WebServer(SearchFunc search_fn, CrawlFunc crawl_fn, const std::string& frontend_dir)
-    : search_fn_(std::move(search_fn)), crawl_fn_(std::move(crawl_fn)), frontend_dir_(frontend_dir), svr_(std::make_unique<httplib::Server>()) {
+WebServer::WebServer(SearchFunc search_fn, CrawlFunc crawl_fn, StatsFunc stats_fn, ClearFunc clear_fn, const std::string& frontend_dir)
+    : search_fn_(std::move(search_fn)), crawl_fn_(std::move(crawl_fn)), stats_fn_(std::move(stats_fn)), clear_fn_(std::move(clear_fn)), frontend_dir_(frontend_dir), svr_(std::make_unique<httplib::Server>()) {
     SetupRoutes();
 }
 
@@ -43,6 +43,19 @@ void WebServer::SetupRoutes() {
         }
     });
 
+    // API route for stats
+    svr_->Get("/api/stats", [this](const httplib::Request&, httplib::Response& res) {
+        try {
+            auto response_json = stats_fn_();
+            res.set_content(response_json.dump(), "application/json");
+            res.set_header("Access-Control-Allow-Origin", "*");
+        } catch (...) {
+            res.status = 500;
+            res.set_content(R"({"error": "Failed to fetch stats"})", "application/json");
+            res.set_header("Access-Control-Allow-Origin", "*");
+        }
+    });
+
     // API route for crawling new sites
     svr_->Post("/api/crawl", [this](const httplib::Request& req, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
@@ -73,6 +86,24 @@ void WebServer::SetupRoutes() {
 
     // Handle OPTIONS requests for CORS
     svr_->Options("/api/crawl", [](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_header("Access-Control-Allow-Methods", "POST, OPTIONS");
+        res.set_header("Access-Control-Allow-Headers", "Content-Type");
+        res.status = 204;
+    });
+
+    // API route for clearing database
+    svr_->Post("/api/clear", [this](const httplib::Request&, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        if (clear_fn_()) {
+            res.set_content(R"({"success": true})", "application/json");
+        } else {
+            res.status = 500;
+            res.set_content(R"({"error": "Failed to clear database"})", "application/json");
+        }
+    });
+
+    svr_->Options("/api/clear", [](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "POST, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");

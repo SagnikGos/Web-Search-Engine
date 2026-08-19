@@ -433,6 +433,12 @@ int RunServer(int argc, char* argv[]) {
         return response_json;
     };
 
+    // Globals for progress tracking
+    static std::atomic<bool> g_is_crawling{false};
+    static std::atomic<int> g_crawl_phase{0}; // 0=idle, 1=crawling, 2=indexing, 3=saving
+    static std::atomic<int> g_crawled_pages{0};
+    static std::atomic<int> g_indexed_pages{0};
+
     auto crawl_fn = [&](const std::string& url, int max_pages) -> bool {
         std::cout << "\n[API] Starting background crawl for: " << url << " (max " << max_pages << ")" << std::endl;
         
@@ -443,15 +449,51 @@ int RunServer(int argc, char* argv[]) {
         config.output_dir = "./data/crawled_pages/";
         
         try {
+            g_is_crawling = true;
+            g_crawl_phase = 1;
+            g_crawled_pages = 0;
+            g_indexed_pages = 0;
+
+            // Simple thread to poll crawler progress by counting files
+            std::atomic<bool> stop_poll{false};
+            std::thread poller([&]() {
+                int initial_count = 0;
+                try {
+                    for (const auto& entry : fs::directory_iterator(config.output_dir)) {
+                        if (entry.path().extension() == ".json") initial_count++;
+                    }
+                } catch(...) {}
+
+                while (!stop_poll) {
+                    int count = 0;
+                    try {
+                        for (const auto& entry : fs::directory_iterator(config.output_dir)) {
+                            if (entry.path().extension() == ".json") count++;
+                        }
+                    } catch(...) {}
+                    g_crawled_pages = count > initial_count ? count - initial_count : 0;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                }
+            });
+
             Crawler crawler(config);
             crawler.Start(); // Blocking crawl
             
+            stop_poll = true;
+            if (poller.joinable()) poller.join();
+
             std::cout << "[API] Crawl complete. Rebuilding index..." << std::endl;
+            g_crawl_phase = 2;
             auto new_bundle = BuildIndex(config.output_dir, stop_words_file, false);
+            // NOTE: BuildIndex itself doesn't easily expose progress without changes.
+            // But we know it finished when it moves to phase 3.
             
             std::cout << "[API] Saving new index to disk..." << std::endl;
+            g_crawl_phase = 3;
             if (!IndexSerializer::Save(index_dir, new_bundle->index, new_bundle->doc_store)) {
                 std::cerr << "[API] Error saving new index" << std::endl;
+                g_is_crawling = false;
+                g_crawl_phase = 0;
                 return false;
             }
             
@@ -465,14 +507,75 @@ int RunServer(int argc, char* argv[]) {
             }
             
             std::cout << "[API] Hot-swapped new index successfully!" << std::endl;
+            g_is_crawling = false;
+            g_crawl_phase = 0;
             return true;
         } catch (const std::exception& e) {
             std::cerr << "[API] Crawl error: " << e.what() << std::endl;
+            g_is_crawling = false;
+            g_crawl_phase = 0;
             return false;
         }
     };
 
-    WebServer server(search_fn, crawl_fn, frontend_dir);
+    auto stats_fn = [&]() -> json {
+        std::shared_ptr<IndexBundle> bundle;
+        {
+            std::lock_guard<std::mutex> lock(engine_mutex);
+            bundle = current_bundle;
+        }
+
+        size_t total_docs = bundle->doc_store.TotalDocuments();
+        size_t total_chars = 0;
+        const auto& docs = bundle->doc_store.GetAllDocuments();
+        for (const auto& doc : docs) {
+            total_chars += doc.body.length();
+        }
+
+        json res;
+        res["total_pages"] = total_docs;
+        res["total_chars"] = total_chars;
+        res["is_crawling"] = (bool)g_is_crawling;
+        res["crawl_phase"] = (int)g_crawl_phase;
+        res["crawled_pages"] = (int)g_crawled_pages;
+        res["index_ready"] = true;
+        return res;
+    };
+
+    auto clear_fn = [&]() -> bool {
+        std::cout << "\n[API] Clearing database..." << std::endl;
+        
+        {
+            std::lock_guard<std::mutex> lock(engine_mutex);
+            // Create empty bundle
+            auto empty_bundle = std::make_shared<IndexBundle>(stop_words_file);
+            empty_bundle->tokenizer = current_bundle->tokenizer;
+            empty_bundle->stop_filter = current_bundle->stop_filter;
+            
+            auto new_processor = std::make_shared<QueryProcessor>(
+                empty_bundle->index, empty_bundle->doc_store, empty_bundle->tokenizer, empty_bundle->stop_filter);
+
+            current_bundle = empty_bundle;
+            current_processor = new_processor;
+        }
+
+        try {
+            if (fs::exists("./data/crawled_pages/")) {
+                for (const auto& entry : fs::directory_iterator("./data/crawled_pages/")) {
+                    fs::remove(entry.path());
+                }
+            }
+            if (fs::exists("./data/index.bin")) fs::remove("./data/index.bin");
+            if (fs::exists("./data/doc_store.bin")) fs::remove("./data/doc_store.bin");
+        } catch (const std::exception& e) {
+            std::cerr << "Error removing files: " << e.what() << std::endl;
+            return false;
+        }
+
+        return true;
+    };
+
+    WebServer server(search_fn, crawl_fn, stats_fn, clear_fn, frontend_dir);
 
     server.Start(port);
     return 0;

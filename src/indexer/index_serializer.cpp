@@ -147,7 +147,7 @@ bool IndexSerializer::LoadDocumentStore(const std::string& input_dir,
             doc_store.AddDocument(
                 doc["url"].get<std::string>(),
                 doc["title"].get<std::string>(),
-                doc["body"].get<std::string>(),
+                doc.value("body", doc.value("snippet", "")),
                 doc["total_terms"].get<int>()
             );
         }

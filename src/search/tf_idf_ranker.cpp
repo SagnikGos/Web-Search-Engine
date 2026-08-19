@@ -24,7 +24,29 @@ double TfIdfRanker::ComputeTF(int term_frequency, int total_terms) const {
 }
 
 // Helper function to generate a dynamic snippet with highlighting
-std::string GenerateDynamicSnippet(const std::string& body, const std::vector<std::string>& query_terms) {
+std::string GenerateDynamicSnippet(const std::string& raw_body, const std::vector<std::string>& query_terms) {
+    std::string body = raw_body;
+    
+    // Strip common Wikipedia boilerplate if present at the start
+    std::string wiki_boilerplate = "Jump to content Main menu Main menu move to sidebar hide \n\t\tNavigation\n\t Main page Contents Current events Random article About Wikipedia Contact us \n\t\tContribute\n\t Help Learn to edit Community portal";
+    if (body.find(wiki_boilerplate) == 0) {
+        body = body.substr(wiki_boilerplate.size());
+    }
+    // Also strip another common variant without newlines
+    std::string wiki_boilerplate2 = "Jump to content Main menu Main menu move to sidebar hide Navigation Main page Contents Current events Random article About Wikipedia Contact us Contribute Help Learn to edit Community portal";
+    if (body.find(wiki_boilerplate2) == 0) {
+        body = body.substr(wiki_boilerplate2.size());
+    }
+    
+    // Clean up leading whitespace/punctuation
+    size_t first_valid = 0;
+    while (first_valid < body.size() && (std::isspace(body[first_valid]) || body[first_valid] == '.' || body[first_valid] == ',' || body[first_valid] == '|')) {
+        first_valid++;
+    }
+    if (first_valid > 0) {
+        body = body.substr(first_valid);
+    }
+
     if (query_terms.empty() || body.empty()) {
         return body.substr(0, std::min(body.size(), (size_t)200)) + "...";
     }

@@ -10,6 +10,20 @@ using json = nlohmann::json;
 
 Crawler::Crawler(const CrawlConfig& config)
     : config_(config), thread_pool_(config.num_threads) {
+    EnsureOutputDir();
+    int max_id = -1;
+    try {
+        for (const auto& entry : std::filesystem::directory_iterator(config_.output_dir)) {
+            if (entry.path().extension() == ".json") {
+                std::string stem = entry.path().stem().string();
+                try {
+                    int id = std::stoi(stem);
+                    if (id > max_id) max_id = id;
+                } catch(...) {}
+            }
+        }
+    } catch(...) {}
+    next_doc_id_ = max_id + 1;
 }
 
 void Crawler::EnsureOutputDir() {
