@@ -28,7 +28,58 @@ export default function AboutPage({ setView }) {
           Search++ is built with a custom C++ backend optimized for speed and efficiency. It features a multithreaded crawler, a custom HTML parser, and an in-memory inverted index for lightning-fast term lookups.
         </p>
 
-        <h2 style={{ fontSize: '20px', color: 'var(--accent-blue)', marginTop: '24px' }}>How It Works</h2>
+        <h2 style={{ fontSize: '20px', color: 'var(--accent-blue)', marginTop: '32px' }}>How It Works</h2>
+        
+        {/* Retro Flow Diagram */}
+        <div style={{
+          padding: '24px',
+          backgroundColor: 'var(--app-bg)',
+          borderTop: '2px solid var(--border-dark)',
+          borderLeft: '2px solid var(--border-dark)',
+          borderBottom: '2px solid var(--border-light)',
+          borderRight: '2px solid var(--border-light)',
+          margin: '24px 0',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--app-bg)', borderTop: '2px solid var(--border-light)', borderLeft: '2px solid var(--border-light)', borderBottom: '2px solid var(--border-darker)', borderRight: '2px solid var(--border-darker)', boxShadow: 'inset -1px -1px 0px var(--border-dark), inset 1px 1px 0px var(--app-bg)', padding: '12px 16px', textAlign: 'center', fontWeight: 'bold', minWidth: '120px'
+          }}>
+            1. Crawl<br/>
+            <span style={{ fontSize: '14px', fontWeight: 'normal', color: 'var(--text-muted)' }}>Thread Pool</span>
+          </div>
+          
+          <div style={{ fontWeight: 'bold', fontSize: '24px', color: 'var(--border-darker)' }}>→</div>
+          
+          <div style={{
+            backgroundColor: 'var(--app-bg)', borderTop: '2px solid var(--border-light)', borderLeft: '2px solid var(--border-light)', borderBottom: '2px solid var(--border-darker)', borderRight: '2px solid var(--border-darker)', boxShadow: 'inset -1px -1px 0px var(--border-dark), inset 1px 1px 0px var(--app-bg)', padding: '12px 16px', textAlign: 'center', fontWeight: 'bold', minWidth: '120px'
+          }}>
+            2. Parse<br/>
+            <span style={{ fontSize: '14px', fontWeight: 'normal', color: 'var(--text-muted)' }}>Gumbo HTML</span>
+          </div>
+
+          <div style={{ fontWeight: 'bold', fontSize: '24px', color: 'var(--border-darker)' }}>→</div>
+          
+          <div style={{
+            backgroundColor: 'var(--app-bg)', borderTop: '2px solid var(--border-light)', borderLeft: '2px solid var(--border-light)', borderBottom: '2px solid var(--border-darker)', borderRight: '2px solid var(--border-darker)', boxShadow: 'inset -1px -1px 0px var(--border-dark), inset 1px 1px 0px var(--app-bg)', padding: '12px 16px', textAlign: 'center', fontWeight: 'bold', minWidth: '120px'
+          }}>
+            3. Index<br/>
+            <span style={{ fontSize: '14px', fontWeight: 'normal', color: 'var(--text-muted)' }}>Inverted Tree</span>
+          </div>
+
+          <div style={{ fontWeight: 'bold', fontSize: '24px', color: 'var(--border-darker)' }}>→</div>
+          
+          <div style={{
+            backgroundColor: 'var(--app-bg)', borderTop: '2px solid var(--border-light)', borderLeft: '2px solid var(--border-light)', borderBottom: '2px solid var(--border-darker)', borderRight: '2px solid var(--border-darker)', boxShadow: 'inset -1px -1px 0px var(--border-dark), inset 1px 1px 0px var(--app-bg)', padding: '12px 16px', textAlign: 'center', fontWeight: 'bold', minWidth: '120px'
+          }}>
+            4. Rank<br/>
+            <span style={{ fontSize: '14px', fontWeight: 'normal', color: 'var(--text-muted)' }}>TF-IDF API</span>
+          </div>
+        </div>
+
         <ol style={{ paddingLeft: '20px', margin: '16px 0' }}>
           <li style={{ marginBottom: '8px' }}><strong>Crawling:</strong> The backend crawls starting from a seed URL, fetching pages concurrently.</li>
           <li style={{ marginBottom: '8px' }}><strong>Parsing & Tokenization:</strong> HTML is stripped, and the text is tokenized. Stop words are filtered out to keep the index lean.</li>
@@ -36,7 +87,7 @@ export default function AboutPage({ setView }) {
           <li style={{ marginBottom: '0' }}><strong>Searching:</strong> Queries are tokenized and scored using a TF-IDF inspired ranking algorithm, returning results in milliseconds.</li>
         </ol>
 
-        <h2 style={{ fontSize: '20px', color: 'var(--accent-blue)', marginTop: '24px' }}>Frontend</h2>
+        <h2 style={{ fontSize: '20px', color: 'var(--accent-blue)', marginTop: '32px' }}>Frontend</h2>
         <p style={{ margin: 0 }}>
           The frontend is a React application styled with a modern-retro aesthetic, communicating with the C++ backend via a REST API to provide a seamless, snappy search experience.
         </p>
