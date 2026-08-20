@@ -24,7 +24,7 @@ void WebServer::SetupRoutes() {
         }
 
         try {
-            auto response_json = search_fn_(query_str, 20);
+            auto response_json = search_fn_(query_str, 1000);
 
             res.set_content(response_json.dump(), "application/json");
             res.set_header("Access-Control-Allow-Origin", "*");
